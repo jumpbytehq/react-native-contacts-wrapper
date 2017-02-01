@@ -4,7 +4,9 @@ import android.app.Activity;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.provider.ContactsContract;
+import android.util.Log;
 
 import com.facebook.react.bridge.ActivityEventListener;
 import com.facebook.react.bridge.Arguments;
@@ -125,11 +127,12 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
                                 do {
                                     mime = cursor.getString(mimeIdx);
                                     if (returnKeys.containsKey(mime)) {
-                                        if (returnKeys.get(mime).equals("name")){
+                                        if (returnKeys.get(mime).equals("name")) {
                                             contactData.putString("name", cursor.getString(dataIdx));
                                         }
                                         if (returnKeys.get(mime).equals("phone")) {
-                                            phoneArray.put(cursor.getString(dataIdx));
+                                            String number = cursor.getString(dataIdx).replaceAll("\\s+", "");
+                                            phoneArray.put(number);
                                         }
                                         if (returnKeys.get(mime).equals("email")) {
                                             emailArray.put(cursor.getString(dataIdx));
@@ -137,6 +140,19 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
                                         foundData = true;
                                     }
                                 } while (cursor.moveToNext());
+                            }
+                            //to remove duplicate number from array
+                            if (phoneArray != null && phoneArray.length() > 0) {
+                                for (int i = 0; i < phoneArray.length(); i++) {
+                                    for (int j = i + 1; j < phoneArray.length(); j++) {
+                                        if (phoneArray.get(j).toString().equals(phoneArray.get(i).toString())) {
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                                                phoneArray.remove(j);
+                                                j--;
+                                            }
+                                        }
+                                    }
+                                }
                             }
                             contactData.putString("id", id);
                             contactData.putString("phone", String.valueOf(phoneArray));
