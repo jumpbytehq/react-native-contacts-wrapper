@@ -1,6 +1,8 @@
 package com.lynxit.contactswrapper;
 
 import android.app.Activity;
+import android.content.ContentResolver;
+import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
@@ -8,39 +10,76 @@ import android.os.Build;
 import android.provider.ContactsContract;
 import android.util.Log;
 
+import java.net.URI;
+import java.util.*;
+
+import com.facebook.react.*;
+
+import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.ActivityEventListener;
 import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.NativeModule;
+import com.facebook.react.bridge.JavaScriptModule;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
+import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.ReadableMapKeySetIterator;
+import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.WritableArray;
+import com.facebook.react.uimanager.ViewManager;
 
 import org.json.JSONArray;
-
-import java.util.HashMap;
+import org.json.JSONObject;
 
 public class ContactsWrapper extends ReactContextBaseJavaModule implements ActivityEventListener {
 
+    private static final String TAG = "JB_CONTACT_WRAPPER";
     private static final int CONTACT_REQUEST = 1;
     private static final int EMAIL_REQUEST = 2;
-    private static final String E_CONTACT_CANCELLED = "E_CONTACT_CANCELLED";
-    private static final String E_CONTACT_NO_DATA = "E_CONTACT_NO_DATA";
-    private static final String E_CONTACT_NO_EMAIL = "E_CONTACT_NO_EMAIL";
-    private static final String E_CONTACT_EXCEPTION = "E_CONTACT_EXCEPTION";
+    public static final String E_CONTACT_CANCELLED = "E_CONTACT_CANCELLED";
+    public static final String E_CONTACT_NO_DATA = "E_CONTACT_NO_DATA";
+    public static final String E_CONTACT_NO_EMAIL = "E_CONTACT_NO_EMAIL";
+    public static final String E_CONTACT_EXCEPTION = "E_CONTACT_EXCEPTION";
+    public static final String E_CONTACT_PERMISSION = "E_CONTACT_PERMISSION";
     private Promise mContactsPromise;
     private Activity mCtx;
+    private final ContentResolver contentResolver;
+    private static final List<String> JUST_ME_PROJECTION = new ArrayList<String>() {{
+        add(ContactsContract.Contacts.Data.MIMETYPE);
+        add(ContactsContract.Profile.DISPLAY_NAME);
+        add(ContactsContract.CommonDataKinds.Contactables.PHOTO_URI);
+        add(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME);
+        add(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME);
+        add(ContactsContract.CommonDataKinds.StructuredName.MIDDLE_NAME);
+        add(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME);
+        add(ContactsContract.CommonDataKinds.Phone.NUMBER);
+        add(ContactsContract.CommonDataKinds.Phone.TYPE);
+        add(ContactsContract.CommonDataKinds.Phone.LABEL);
+        add(ContactsContract.CommonDataKinds.Email.DATA);
+        add(ContactsContract.CommonDataKinds.Email.ADDRESS);
+        add(ContactsContract.CommonDataKinds.Email.TYPE);
+        add(ContactsContract.CommonDataKinds.Email.LABEL);
+    }};
+    private Context context;
 
 
     public ContactsWrapper(ReactApplicationContext reactContext) {
         super(reactContext);
+        this.contentResolver = getReactApplicationContext().getContentResolver();
         reactContext.addActivityEventListener(this);
+        this.context = reactContext;
+
     }
 
     @Override
     public String getName() {
         return "ContactsWrapper";
     }
+
 
 
     @ReactMethod
@@ -55,25 +94,31 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
 
     /**
      * Lanch the contact picker, with the specified requestCode for returned data.
-     *
      * @param contactsPromise - promise passed in from React Native.
-     * @param requestCode     - request code to specify what contact data to return
+     * @param requestCode - request code to specify what contact data to return
      */
     private void launchPicker(Promise contactsPromise, int requestCode) {
-        mContactsPromise = contactsPromise;
-        Intent intent = new Intent(Intent.ACTION_PICK);
-        intent.setType(ContactsContract.Contacts.CONTENT_TYPE);
-        mCtx = getCurrentActivity();
-        if (intent.resolveActivity(mCtx.getPackageManager()) != null) {
-            mCtx.startActivityForResult(intent, requestCode);
+//        this.contentResolver.query(Uri.parse("content://com.android.contacts/contacts/lookup/0r3-A7416BA07AEA92F2/3"), null, null, null, null);
+        Cursor cursor = this.contentResolver.query(ContactsContract.Contacts.CONTENT_URI, null, null, null, null);
+        if (cursor != null) {
+            mContactsPromise = contactsPromise;
+            Intent intent = new Intent(Intent.ACTION_PICK);
+            intent.setType(ContactsContract.Contacts.CONTENT_TYPE);
+            mCtx = getCurrentActivity();
+            if (intent.resolveActivity(mCtx.getPackageManager()) != null) {
+                mCtx.startActivityForResult(intent, requestCode);
+            }
+            cursor.close();
+        }else{
+            mContactsPromise.reject(E_CONTACT_PERMISSION, "no permission");
         }
     }
 
     @Override
     public void onActivityResult(Activity ContactsWrapper, final int requestCode, final int resultCode, final Intent intent) {
 
-        if (mContactsPromise == null || mCtx == null
-                || (requestCode != CONTACT_REQUEST && requestCode != EMAIL_REQUEST)) {
+        if(mContactsPromise == null || mCtx == null
+                || (requestCode != CONTACT_REQUEST && requestCode != EMAIL_REQUEST)){
             return;
         }
 
@@ -81,29 +126,29 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
         switch (resultCode) {
             case (Activity.RESULT_OK):
                 Uri contactUri = intent.getData();
-                switch (requestCode) {
-                    case (CONTACT_REQUEST):
+                switch(requestCode) {
+                    case(CONTACT_REQUEST):
                         try {
                             /* Retrieve all possible data about contact and return as a JS object */
-
-                            /* Map Any contact data we want returned to the JS object key for React Native */
-                            HashMap<String, String> returnKeys = new HashMap<String, String>();
-                            returnKeys.put(ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE, "name");
-                            returnKeys.put(ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE, "phone");
-                            returnKeys.put(ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE, "email");
 
                             //First get ID
                             String id = null;
                             int idx;
+
                             WritableMap contactData = Arguments.createMap();
-                            Cursor cursor = mCtx.getContentResolver().query(contactUri, null, null, null, null);
-                            if (cursor.moveToFirst()) {
+                            JSONArray phoneArray = new JSONArray();
+                            JSONArray emailArray = new JSONArray();
+
+
+                            Cursor cursor = this.contentResolver.query(contactUri, null, null, null, null);
+                            if (cursor != null && cursor.moveToFirst()) {
                                 idx = cursor.getColumnIndex(ContactsContract.Contacts._ID);
                                 id = cursor.getString(idx);
                             } else {
                                 mContactsPromise.reject(E_CONTACT_NO_DATA, "Contact Data Not Found");
                                 return;
                             }
+
 
                             // Build the Entity URI.
                             Uri.Builder b = Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_URI, id).buildUpon();
@@ -116,36 +161,84 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
                                     ContactsContract.Contacts.Entity.DATA1
                             };
                             String sortOrder = ContactsContract.Contacts.Entity.RAW_CONTACT_ID + " ASC";
-                            cursor = mCtx.getContentResolver().query(contactUri, projection, null, null, sortOrder);
-                            JSONArray phoneArray = new JSONArray();
-                            JSONArray emailArray = new JSONArray();
+                            cursor = this.contentResolver.query(contactUri, projection, null, null, sortOrder);
+                            if(cursor == null)  return;
+
                             String mime;
                             boolean foundData = false;
-                            int dataIdx = cursor.getColumnIndex(ContactsContract.Contacts.Entity.DATA1);
-                            int mimeIdx = cursor.getColumnIndex(ContactsContract.Contacts.Entity.MIMETYPE);
-                            if (cursor.moveToFirst()) {
-                                do {
-                                    mime = cursor.getString(mimeIdx);
-                                    if (returnKeys.containsKey(mime)) {
-                                        if (returnKeys.get(mime).equals("name")) {
-                                            contactData.putString("name", cursor.getString(dataIdx));
-                                        }
-                                        if (returnKeys.get(mime).equals("phone")) {
-                                            String number = cursor.getString(dataIdx).replaceAll("\\s+", "");
-                                            phoneArray.put(number);
-                                        }
-                                        if (returnKeys.get(mime).equals("email")) {
-                                            emailArray.put(cursor.getString(dataIdx));
-                                        }
-                                        foundData = true;
-                                    }
-                                } while (cursor.moveToNext());
+                            /* Map Any contact data we want returned to the JS object key for React Native */
+                            HashMap<String, String> returnKeys = new HashMap<String, String>();
+                            returnKeys.put(ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE, "name");
+
+                            // loops through all phones
+
+                            Cursor phones = this.contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null,
+                                    ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = " + id, null, null);
+                            while (phones.moveToNext())
+                            {
+                                String number = phones.getString(phones.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
+                                int type = phones.getInt(phones.getColumnIndex(ContactsContract.CommonDataKinds.Phone.TYPE));
+                                String phoneType = "";
+                                switch (type) {
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_HOME:
+                                        phoneType = " home";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE:
+                                        phoneType = "mobile";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_WORK:
+                                        phoneType = "work";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_OTHER:
+                                        phoneType = "other";
+                                        break;
+                                }
+                                JSONObject object = new JSONObject();
+                                object.put("number", number);
+                                object.put("number_type", phoneType);
+                                phoneArray.put(object);
                             }
+                            phones.close();
+
+                            // loops through all emails
+                            Cursor emails = this.contentResolver.query(ContactsContract.CommonDataKinds.Email.CONTENT_URI, null,
+                                    ContactsContract.CommonDataKinds.Email.CONTACT_ID + " = " + id, null, null);
+                            while (emails.moveToNext())
+                            {
+                                String emailAddress = emails.getString(emails.getColumnIndex(ContactsContract.CommonDataKinds.Email.ADDRESS));
+                                int type = emails.getInt(emails.getColumnIndex(ContactsContract.CommonDataKinds.Email.TYPE));
+                                String emailType = "";
+                                switch (type) {
+                                    case ContactsContract.CommonDataKinds.Email.TYPE_HOME:
+                                        emailType = "home";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Email.TYPE_MOBILE:
+                                        emailType = "mobile";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Email.TYPE_WORK:
+                                        emailType = "work";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Email.TYPE_OTHER:
+                                        emailType = "other";
+                                        break;
+                                }
+                                Log.w(TAG, emailType);
+                                JSONObject object = new JSONObject();
+                                object.put("address", emailAddress);
+                                object.put("address_type", emailType);
+                                emailArray.put(object);
+                            }
+                            emails.close();
+
                             //to remove duplicate number from array
                             if (phoneArray != null && phoneArray.length() > 0) {
                                 for (int i = 0; i < phoneArray.length(); i++) {
                                     for (int j = i + 1; j < phoneArray.length(); j++) {
-                                        if (phoneArray.get(j).toString().equals(phoneArray.get(i).toString())) {
+                                        String iNumber = phoneArray.getJSONObject(i).get("number").toString();
+                                        iNumber = iNumber.replace(" ", "");
+                                        String jNumber = phoneArray.getJSONObject(j).get("number").toString();
+                                        jNumber = jNumber.replace(" ", "");
+                                        if (jNumber.equals(iNumber)) {
                                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                                                 phoneArray.remove(j);
                                                 j--;
@@ -154,11 +247,25 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
                                     }
                                 }
                             }
-                            contactData.putString("id", id);
                             contactData.putString("phone", String.valueOf(phoneArray));
                             contactData.putString("email", String.valueOf(emailArray));
 
-                            if (foundData) {
+                            // this now only grabs the name of the contact
+                            int dataIdx = cursor.getColumnIndex(ContactsContract.Contacts.Entity.DATA1);
+                            int mimeIdx = cursor.getColumnIndex(ContactsContract.Contacts.Entity.MIMETYPE);
+                            if (cursor.moveToFirst()) {
+                                do {
+                                    mime = cursor.getString(mimeIdx);
+                                    if(returnKeys.containsKey(mime)) {
+                                        contactData.putString((String) returnKeys.get(mime), cursor.getString(dataIdx));
+                                        foundData = true;
+                                    }
+                                } while (cursor.moveToNext());
+                            }
+
+                            cursor.close();
+                            if(foundData) {
+                                // send contact back
                                 mContactsPromise.resolve(contactData);
                                 return;
                             } else {
@@ -170,7 +277,7 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
                             return;
                         }
                         /* No need to break as all paths return */
-                    case (EMAIL_REQUEST):
+                    case(EMAIL_REQUEST):
                         /* Return contacts first email address, as string */
                         try {
 
