@@ -140,21 +140,35 @@ RCT_EXPORT_METHOD(getEmail:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseR
             for(phone in phoneNos){
                 NSLog(@"Phone: %@", phone);
                 CNPhoneNumber *phoneObj = ((CNLabeledValue *)phone).value;
+                NSString *label = ((CNLabeledValue *)phone).label;
                 NSString *digits = phoneObj.stringValue;
                 NSString *countrycode = [phoneObj valueForKey:@"countryCode"];
+                label = [CNLabeledValue localizedStringForLabel:label];
                 NSDictionary *tempPhoneObj = @{
                                                @"digits": digits,
                                                @"code": countrycode
                                                };
+                NSDictionary *tempPhoneWithLabel = @{
+                                                   @"number": digits,
+                                                   @"number_type": label
+                                                   };
                 [phoneWithCode addObject: tempPhoneObj];
-                [phones addObject: digits];
+              
+                [phones addObject: tempPhoneWithLabel];
             }
             
             NSMutableArray *emails=[[NSMutableArray alloc] init];
             CNLabeledValue *email;
             for(email in emailAddresses){
                 NSLog(@"Email: %@", email);
-                [emails addObject: ((CNLabeledValue *)email).value];
+                CNLabeledValue *emailId = ((CNLabeledValue *)email).value;
+                NSString *label = ((CNLabeledValue *)email).label;
+                label = [CNLabeledValue localizedStringForLabel:label];
+                NSDictionary *tempEmailWithLabel = @{
+                                                   @"address": emailId,
+                                                   @"address_type": label
+                                                   };
+                [emails addObject: tempEmailWithLabel];
             }
             
             [contactData setValue:identifier forKey:@"identifier"];

@@ -207,6 +207,9 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
                                     case ContactsContract.CommonDataKinds.Phone.TYPE_OTHER_FAX:
                                         phoneType = "Other Fax";
                                         break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_FAX_WORK:
+                                        phoneType = "Work Fax";
+                                        break;
                                     case ContactsContract.CommonDataKinds.Phone.TYPE_TELEX:
                                         phoneType = "Telex";
                                         break;
@@ -228,6 +231,8 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
                                     case ContactsContract.CommonDataKinds.Phone.TYPE_OTHER:
                                         phoneType = "Other";
                                         break;
+                                    default:
+                                        phoneType = "Other";    
                                 }
                                 JSONObject object = new JSONObject();
                                 object.put("number", number);
@@ -260,6 +265,8 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
                                     case ContactsContract.CommonDataKinds.Email.TYPE_CUSTOM:
                                         emailType = "Custom";
                                         break;
+                                    default:
+                                        emailType = "Other";    
                                 }
                                 Log.w(TAG, emailType);
                                 JSONObject object = new JSONObject();
