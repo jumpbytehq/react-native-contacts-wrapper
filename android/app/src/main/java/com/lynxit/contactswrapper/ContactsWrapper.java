@@ -181,16 +181,52 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
                                 String phoneType = "";
                                 switch (type) {
                                     case ContactsContract.CommonDataKinds.Phone.TYPE_HOME:
-                                        phoneType = " home";
+                                        phoneType = "Home";
                                         break;
                                     case ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE:
-                                        phoneType = "mobile";
+                                        phoneType = "Mobile";
                                         break;
                                     case ContactsContract.CommonDataKinds.Phone.TYPE_WORK:
-                                        phoneType = "work";
+                                        phoneType = "Work";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_FAX_HOME:
+                                        phoneType = "Home Fax";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_MMS:
+                                        phoneType = "MMS";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_PAGER:
+                                        phoneType = "Pager";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_WORK_MOBILE:
+                                        phoneType = "Work Mobile";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_WORK_PAGER:
+                                        phoneType = "Work Pager";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_OTHER_FAX:
+                                        phoneType = "Other Fax";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_TELEX:
+                                        phoneType = "Telex";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_COMPANY_MAIN:
+                                        phoneType = "Company Main";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_CAR:
+                                        phoneType = "Car";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_CALLBACK:
+                                        phoneType = "CallBack";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_MAIN:
+                                        phoneType = "Main";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Phone.TYPE_CUSTOM:
+                                        phoneType = "Custom";
                                         break;
                                     case ContactsContract.CommonDataKinds.Phone.TYPE_OTHER:
-                                        phoneType = "other";
+                                        phoneType = "Other";
                                         break;
                                 }
                                 JSONObject object = new JSONObject();
@@ -210,16 +246,19 @@ public class ContactsWrapper extends ReactContextBaseJavaModule implements Activ
                                 String emailType = "";
                                 switch (type) {
                                     case ContactsContract.CommonDataKinds.Email.TYPE_HOME:
-                                        emailType = "home";
+                                        emailType = "Home";
                                         break;
                                     case ContactsContract.CommonDataKinds.Email.TYPE_MOBILE:
-                                        emailType = "mobile";
+                                        emailType = "Mobile";
                                         break;
                                     case ContactsContract.CommonDataKinds.Email.TYPE_WORK:
-                                        emailType = "work";
+                                        emailType = "Work";
                                         break;
                                     case ContactsContract.CommonDataKinds.Email.TYPE_OTHER:
-                                        emailType = "other";
+                                        emailType = "Other";
+                                        break;
+                                    case ContactsContract.CommonDataKinds.Email.TYPE_CUSTOM:
+                                        emailType = "Custom";
                                         break;
                                 }
                                 Log.w(TAG, emailType);
